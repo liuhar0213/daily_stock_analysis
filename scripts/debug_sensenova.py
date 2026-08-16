@@ -9,12 +9,12 @@ base = os.environ.get("OPENAI_BASE_URL", "")
 key = os.environ.get("OPENAI_API_KEY", "")
 print("LITELLM_MODEL:", model)
 
-# 构造接近真实的超长 prompt
-kline = []
+kline_rows = []
 for i in range(42):
-    kline.append(f"日期:2026-0{i//8+6}-{i%28+1:02d} 开:{(9+i*0.1):.2f} 高:{(9.5+i*0.1):.2f} 低:{(8.8+i*0.1):.2f} 收:{(9.2+i*0.1):.2f} 量:{(1000000+i*10000)} 额:{(1000000000+i*10000000)} 振幅:{(0.5+i*0.1):.2f}% 涨跌幅:{(0.3+i*0.05):.2f}% 换手率:{(0.9+i*0.1):.2f}%")
+    kline_rows.append(f"日期:2026-0{i//8+6}-{i%28+1:02d} 开:{(9+i*0.1):.2f} 高:{(9.5+i*0.1):.2f} 低:{(8.8+i*0.1):.2f} 收:{(9.2+i*0.1):.2f} 量:{(1000000+i*10000)} 额:{(1000000000+i*10000000)} 振幅:{(0.5+i*0.1):.2f}% 涨跌幅:{(0.3+i*0.05):.2f}% 换手率:{(0.9+i*0.1):.2f}%")
+kline_text = chr(10).join(kline_rows)
 
-system_prompt = """你是一位专业的A股分析助手。请严格按照JSON格式输出分析报告，包含字段：股票名称、股票代码、分析日期、趋势判断、支撑压力位、技术指标、风险提示、操作建议。""".strip()
+system_prompt = "你是一位专业的A股分析助手。请严格按照JSON格式输出分析报告，包含字段：股票名称、股票代码、分析日期、趋势判断、支撑压力位、技术指标、风险提示、操作建议。"
 
 prompt = f"""
 请分析以下股票：
@@ -25,7 +25,7 @@ prompt = f"""
 【大盘背景】上证指数今日小幅震荡，成交额约8000亿，北向资金净流入。行业板块方面，有色金属涨幅居前，煤炭、钢铁跟涨。
 
 【K线数据（近42个交易日）】
-{'\n'.join(kline)}
+{kline_text}
 
 【技术指标】MA5=9.30 MA10=9.25 MA20=9.10 MA60=8.80，MACD金叉，KDJ超买区，RSI=65。
 
@@ -49,6 +49,7 @@ try:
         max_tokens=8192,
         temperature=0.7,
         stream=False,
+        timeout=180,
     )
     content = resp.choices[0].message.content
     msg = resp.choices[0].message
@@ -59,7 +60,7 @@ try:
     finish = getattr(resp.choices[0], "finish_reason", None)
     print("finish_reason:", finish)
     usage = resp.usage
-    print("usage:", usage)
+    print("usage:", dict(usage) if usage else None)
 except Exception as e:
     print(f"FAIL after {time.time()-t0:.1f}s:", type(e).__name__, str(e)[:600])
 
@@ -74,7 +75,7 @@ try:
         max_tokens=8192,
         temperature=0.7,
         stream=True,
-        timeout=120,
+        timeout=180,
     )
     parts = []
     for chunk in resp:
