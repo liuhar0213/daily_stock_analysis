@@ -1,0 +1,73 @@
+name: Debug LLM Sensenova
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install litellm
+        run: pip install 'litellm>=1.80.10,!=1.82.7,!=1.82.8,<2.0.0' -q
+
+      - name: Debug curl to sensenova
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          LITELLM_MODEL: ${{ secrets.LITELLM_MODEL }}
+        run: |
+          echo "== 1) curl 直接测试 =="
+          curl -s -w "\nHTTP_CODE:%{http_code}\n" \
+            -H "Authorization: Bearer $OPENAI_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"model":"'$OPENAI_MODEL'","messages":[{"role":"user","content":"回复OK两个字"}],"max_tokens":50}' \
+            "$OPENAI_BASE_URL/chat/completions"
+          echo ""
+          echo "== 2) litellm 测试 =="
+          python3 - <<'PY'
+import litellm, os
+print("litellm version:", litellm.version)
+model = os.environ.get("LITELLM_MODEL", "")
+base = os.environ.get("OPENAI_BASE_URL", "")
+key = os.environ.get("OPENAI_API_KEY", "")
+print("LITELLM_MODEL:", model)
+print("BASE_URL:", base)
+try:
+    resp = litellm.completion(
+        model=model,
+        api_key=key,
+        api_base=base,
+        messages=[{"role": "user", "content": "回复OK两个字"}],
+        max_tokens=50,
+        stream=False,
+    )
+    content = resp.choices[0].message.content
+    print("litellm OK, len=", len(content or ""), "content=", repr((content or "")[:100]))
+except Exception as e:
+    print("litellm FAIL:", type(e).__name__, str(e)[:800])
+try:
+    resp = litellm.completion(
+        model=model,
+        api_key=key,
+        api_base=base,
+        messages=[{"role": "user", "content": "回复OK两个字"}],
+        max_tokens=50,
+        stream=True,
+    )
+    parts = []
+    for chunk in resp:
+        if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+            parts.append(chunk.choices[0].delta.content)
+    print("litellm stream OK, len=", len("".join(parts)))
+except Exception as e:
+    print("litellm stream FAIL:", type(e).__name__, str(e)[:800])
+PY
