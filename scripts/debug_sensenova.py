@@ -1,7 +1,8 @@
+from importlib.metadata import version
 import litellm
 import os
 
-print("litellm version:", litellm.version)
+print("litellm version:", version("litellm"))
 model = os.environ.get("LITELLM_MODEL", "")
 base = os.environ.get("OPENAI_BASE_URL", "")
 key = os.environ.get("OPENAI_API_KEY", "")
@@ -23,9 +24,7 @@ try:
     print("content type:", type(content), "len:", len(content or ""))
     print("content repr:", repr((content or "")[:200]))
     msg = resp.choices[0].message
-    if hasattr(msg, "model_extra"):
-        print("model_extra keys:", list((msg.model_extra or {}).keys()))
-    print("full message dict:", dict(msg))
+    print("message dict:", dict(msg))
 except Exception as e:
     print("FAIL:", type(e).__name__, str(e)[:800])
 
