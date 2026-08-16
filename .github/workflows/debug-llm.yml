@@ -5,6 +5,7 @@ jobs:
   debug:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
@@ -17,6 +18,8 @@ jobs:
           OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
           LITELLM_MODEL: ${{ secrets.LITELLM_MODEL }}
         run: |
-          curl -s -w "HTTP_CODE:%{http_code}" -H "Authorization: Bearer $OPENAI_API_KEY" -H "Content-Type: application/json" -d '{"model":"'$OPENAI_MODEL'","messages":[{"role":"user","content":"回复OK"}],"max_tokens":10}' "$OPENAI_BASE_URL/chat/completions"
+          echo "== curl with max_tokens=200 =="
+          curl -s -H "Authorization: Bearer $OPENAI_API_KEY" -H "Content-Type: application/json" -d '{"model":"'$OPENAI_MODEL'","messages":[{"role":"user","content":"回复OK两个字"}],"max_tokens":200}' "$OPENAI_BASE_URL/chat/completions"
           echo ""
+          echo "== python script =="
           python3 scripts/debug_sensenova.py
